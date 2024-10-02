@@ -1,0 +1,15 @@
+torch
+torchvision
+torchaudio
+torchmetrics
+numpy
+pandas
+scipy
+wandb
+tqdm
+lion-pytorch
+matplotlib
+seaborn
+scikit-learn
+seaborn
+Pillow==9.5.0
