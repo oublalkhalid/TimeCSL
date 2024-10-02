@@ -10,13 +10,6 @@ We formalize identifiability  problem for time series variable model where facto
 ## Environment Setup
 This code was tested for Python 3.10. 
 
-You can start by cloning the repository:
-
-```bash
-git clone git@github.com:brendel-group/TimeCSL.git
-cd TimeCSL
-```
-
 Then, set up your environment by choosing one of the following methods:
 
 <details open>
