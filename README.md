@@ -101,3 +101,69 @@ Here is an example command for evaluation:
 ```bash
 python src/evaluation.py --dataset_path "/path/from/previous/step" --model_path "checkpoints/SlotMLPAdditive.pt" --model_name "SlotMLPAdditive" --n_slot_latents 6
 ```
+
+### Metrics
+
+```python
+def r2_score(
+    true_latents: torch.Tensor, predicted_latents: torch.Tensor, indices: torch.Tensor
+) -> Tuple[int, torch.Tensor]:
+    """
+    Calculates R2 score. Slots are flattened before calculating R2 score.
+
+    Args:
+        true_latents: tensor of shape (batch_size, n_slots, n_latents)
+        predicted_latents: tensor of shape (batch_size, n_slots, n_latents)
+        indices: tensor of shape (batch_size, n_slots, 2) with indices of matched slots
+
+    Returns:
+        avg_r2_score: average R2 score over all latents
+        r2_score_raw: R2 score for each latent
+    """
+    indices = torch.LongTensor(indices)
+    predicted_latents = predicted_latents.detach().cpu()
+    true_latents = true_latents.detach().cpu()
+
+    # shuffling predicted latents to match true latents
+    predicted_latents = predicted_latents.gather(
+        1,
+        indices[:, :, 1].unsqueeze(-1).expand(-1, -1, predicted_latents.shape[-1]),
+    )
+    true_latents = true_latents.flatten(start_dim=1)
+    predicted_latents = predicted_latents.flatten(start_dim=1)
+    r2 = R2Score(true_latents.shape[1], multioutput="raw_values")
+    r2_score_raw = r2(predicted_latents, true_latents)
+    r2_score_raw[torch.isinf(r2_score_raw)] = torch.nan
+    avg_r2_score = torch.nanmean(r2_score_raw).item()
+    return avg_r2_score, r2_score_raw
+```
+
+**Sequence $R^2$**
+
+```python
+def sequences_r2_score(true_sequences: torch.Tensor, predicted_sequences: torch.Tensor) -> float:
+    """
+    Calculates R2 score for sequences. Used for sequence reconstruction evaluation.
+
+    Args:
+        true_sequences: tensor of shape (batch_size, n_channels, T)
+        predicted_sequences: tensor of shape (batch_size, n_channels, T)
+
+    Returns:
+        reconstruction_error: R2 score
+    """
+
+    r2_vw = R2Score(
+        num_outputs=np.prod(true_sequences.shape[1:]), multioutput="variance_weighted"
+    ).to(true_sequences.device)
+
+    # add eps to avoid division by zero
+    true_sequences += 1e-7
+
+    reconstruction_error = r2_vw(
+        predicted_images.reshape(predicted_sequences.shape[0], -1),
+        true_sequences.reshape(true_sequences.shape[0], -1),
+    )
+
+    return reconstruction_error
+```

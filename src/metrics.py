@@ -46,9 +46,9 @@ def r2_score(
     return avg_r2_score, r2_score_raw
 
 
-def image_r2_score(true_images: torch.Tensor, predicted_images: torch.Tensor) -> float:
+def image_r2_score(true_sequences: torch.Tensor, predicted_sequences: torch.Tensor) -> float:
     """
-    Calculates R2 score for images. Used for image reconstruction evaluation.
+    Calculates R2 score for sequences. Used for sequence reconstruction evaluation.
 
     Args:
         true_images: tensor of shape (batch_size, n_channels, height, width)
@@ -59,15 +59,15 @@ def image_r2_score(true_images: torch.Tensor, predicted_images: torch.Tensor) ->
     """
 
     r2_vw = R2Score(
-        num_outputs=np.prod(true_images.shape[1:]), multioutput="variance_weighted"
-    ).to(true_images.device)
+        num_outputs=np.prod(true_sequences.shape[1:]), multioutput="variance_weighted"
+    ).to(true_sequences.device)
 
     # add eps to avoid division by zero
-    true_images += 1e-7
+    true_sequences += 1e-7
 
     reconstruction_error = r2_vw(
-        predicted_images.reshape(predicted_images.shape[0], -1),
-        true_images.reshape(true_images.shape[0], -1),
+        predicted_images.reshape(predicted_sequences.shape[0], -1),
+        true_sequences.reshape(true_sequences.shape[0], -1),
     )
 
     return reconstruction_error
@@ -218,22 +218,22 @@ def identifiability_score(
     z_true_ood = []
     z_pred_ood = []
     with torch.no_grad():
-        for images, true_latents in test_id_loader:
-            images = images[:, -1, ...].to(device)
+        for sequences, true_latents in test_id_loader:
+            sequences = sequences[:, -1, ...].to(device)
             true_latents = true_latents.to(device)
             z_true_id.append(true_latents)
-            output = model(images)
+            output = model(sequences)
             z_pred_id.append(output["predicted_latents"])
 
     z_true_id = torch.cat(z_true_id, dim=0)
     z_pred_id = torch.cat(z_pred_id, dim=0)
 
     with torch.no_grad():
-        for images, true_latents in test_ood_loader:
-            images = images[:, -1, ...].to(device)
+        for sequences, true_latents in test_ood_loader:
+            sequences = sequences[:, -1, ...].to(device)
             true_latents = true_latents.to(device)
             z_true_ood.append(true_latents)
-            output = model(images)
+            output = model(sequences)
             z_pred_ood.append(output["predicted_latents"])
 
     z_true_ood = torch.cat(z_true_ood, dim=0)
