@@ -4,7 +4,7 @@ Official code for the paper **Identifiability Guarantees For Time Series Represe
 
 We formalize identifiability  problem for time series variable model where factors are represented by latent slots. 
 
-We are excited to announce the release of 221 models, now available for exploration and download at [Hugging Face](https://huggingface.co/IPP-Paris/TimeCSL/tree/main). These models are part of our ongoing effort to push the boundaries of machine learning and provide the community with cutting-edge tools for time series analysis. Visit the repository to access the models and integrate them into your projects.
+We are excited to announce the release of 221 models. These models are part of our ongoing effort to push the boundaries of machine learning and provide the community with cutting-edge tools for time series analysis. Visit the repository to access the models and integrate them into your projects.
 
 ![Overview](assets/fig1_v12.png)
 
