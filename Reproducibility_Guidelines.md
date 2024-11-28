@@ -162,7 +162,7 @@ The code used to generate the results from the experiments in Sections 5.2 to 5.
 - `run section4.1_disentnaglement_identifiability.py`: Training,Computes and saves metric scores
 - plots: Some plots are generated after runing ``section4.1_disentnaglement_identifiability`` and saves plots for each metric.
 
-### Section 4.1 of our paper
+### Section 4.2 of our paper
 - `run section4.2_generalization.py`: Trains the model, computes, and saves metric scores.
 - Plots: Generated automatically after running `section4.2_generalization.py` and saved for each metric.
 
