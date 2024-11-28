@@ -46,7 +46,7 @@ To train the model, run the following command:
 
 ```bash
 cd src_timecsl/
-python train.py --dataset_path last_step" --model_name "TimeCSL" --num_slots 2 --epochs 200 --use_invariance_loss True
+python train.py --dataset_path last_step" --model_name "TimeCSL" --num_slots 2 --epochs 200 --use_generalization_loss True
 ```
 
 For complete details on the parameters, please refer to the `main.py` file.
