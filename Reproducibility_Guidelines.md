@@ -2,9 +2,11 @@
 # Identifiability Guarantees For Time Series Representation via Contrastive Sparsity-inducing
 Official code for the paper **Identifiability Guarantees For Time Series Representation via Contrastive Sparsity-inducing**
 
-We formalize identifiability  problem for time series variable model where factors are represented by latent slots. 
+We define the identifiability problem for time series variable models, where factors are represented by latent slots.  
 
-We are excited to announce the release of 221 models, are available in folder ``checkpoints`` also you can downdload them from ``https://huggingface.co/anonymousModelsTimeCSL/TimeCSL``. These models are part of our ongoing effort to push the boundaries of machine learning and provide the community with cutting-edge tools for time series analysis. Visit the repository to access the models and integrate them into your projects.
+We are thrilled to announce the release of 221 models, now available in the `checkpoints` folder and downloadable from [https://huggingface.co/anonymousModelsTimeCSL/TimeCSL](https://huggingface.co/anonymousModelsTimeCSL/TimeCSL). These models are part of our commitment to advancing machine learning and equipping the community with state-of-the-art tools for time series analysis. Visit the repository to explore the models and seamlessly integrate them into your projects.
+
+Our code is available at https://anonymous.4open.science/r/TimeCSL-4320.
 
 ## Environment Setup
 This code was tested for Python 3.10. 
