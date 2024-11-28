@@ -1,5 +1,5 @@
-# coding=utf-8
-# Copyright 2018 Ubisoft La Forge Authors.  All rights reserved.
+# Identifiability Guarantees For Time Series Representation via Contrastive Sparsity-inducing
+# Copyright 2024, ICLR 2025
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,17 +13,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import numpy as np
-
 from sklearn.preprocessing import minmax_scale
-
 from utils import get_bin_index, get_mutual_information
 
-    
+
 def mig(factors, codes, continuous_factors=True, nb_bins=10):
-    ''' MIG metric from R. T. Q. Chen, X. Li, R. B. Grosse, and D. K. Duvenaud,
+    """MIG metric from R. T. Q. Chen, X. Li, R. B. Grosse, and D. K. Duvenaud,
         “Isolating sources of disentanglement in variationalautoencoders,”
         in NeurIPS, 2018.
-    
+
     :param factors:                         dataset of factors
                                             each column is a factor and each line is a data point
     :param codes:                           latent codes associated to the dataset of factors
@@ -31,16 +29,16 @@ def mig(factors, codes, continuous_factors=True, nb_bins=10):
     :param continuous_factors:              True:   factors are described as continuous variables
                                             False:  factors are described as discrete variables
     :param nb_bins:                         number of bins to use for discretization
-    '''
+    """
     # count the number of factors and latent codes
     nb_factors = factors.shape[1]
     nb_codes = codes.shape[1]
-    
+
     # quantize factors if they are continuous
     if continuous_factors:
         factors = minmax_scale(factors)  # normalize in [0, 1] all columns
         factors = get_bin_index(factors, nb_bins)  # quantize values and get indexes
-    
+
     # quantize latent codes
     codes = minmax_scale(codes)  # normalize in [0, 1] all columns
     codes = get_bin_index(codes, nb_bins)  # quantize values and get indexes
@@ -57,8 +55,8 @@ def mig(factors, codes, continuous_factors=True, nb_bins=10):
         mi_f = np.sort(mi_matrix[f, :])
         # get diff between highest and second highest term and add it to total gap
         sum_gap += mi_f[-1] - mi_f[-2]
-    
+
     # compute the mean gap
     mig_score = sum_gap / nb_factors
-    
+
     return mig_score

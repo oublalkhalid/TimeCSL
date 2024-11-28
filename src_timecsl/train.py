@@ -1,3 +1,18 @@
+# Identifiability Guarantees For Time Series Representation via Contrastive Sparsity-inducing
+# Copyright 2024, ICLR 2025
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import os.path
 from contextlib import nullcontext
 
@@ -8,7 +23,6 @@ import src.datasets.wrappers
 import src.metrics as metrics
 import src.models
 import src.utils.training_utils as training_utils
-
 from .models import base_models, slot_attention
 
 
@@ -25,8 +39,6 @@ def one_epoch(
     unsupervised_mode=True,
     **kwargs,
 ):
-    """One epoch of training or testing. Please check main.py for keyword parameters descriptions'."""
-
     if mode == "train":
         model.train()
     elif mode in ["test_ID", "test_OOD", "test_RDM"]:
@@ -45,22 +57,19 @@ def one_epoch(
     accum_consistency_loss = 0
     accum_consistency_encoder_loss = 0
     accum_consistency_decoder_loss = 0
-    for batch_idx, (images, true_latents) in enumerate(dataloader):
+    for batch_idx, (time_series, true_latents) in enumerate(dataloader):
         total_loss = torch.tensor(0.0, device=device)
-        # adjust overall epoch loss to match mean over all samples
-        accum_adjustment = len(images) / len(dataloader.dataset)
-
-        # first dimensions contain separate objects, last dimension is the final image ("sum" of objects)
-        images = images.to(device)
-        true_figures = images[:, :-1, ...]
-        images = images[:, -1, ...].squeeze(1)
+        accum_adjustment = len(time_series) / len(dataloader.dataset)
+        time_series = time_series.to(device)
+        true_figures = time_series[:, :-1, ...]
+        time_series = time_series[:, -1, ...].squeeze(1)
         true_latents = true_latents.to(device)
 
         if mode == "train":
             optimizer.zero_grad()
 
         output_dict = model(
-            images,
+            time_series,
             use_consistency_loss=use_consistency_loss
             * (epoch >= consistency_ignite_epoch),
         )
@@ -69,14 +78,13 @@ def one_epoch(
             model_loss = output_dict["loss"]
             accum_model_loss += model_loss.item() * accum_adjustment
 
-        # calculate reconstruction loss for all models with the decoder
         reconstruction_loss = metrics.reconstruction_loss(
-            images, output_dict["reconstructed_image"]
+            time_series, output_dict["reconstructed_time_series"]
         )
         accum_reconstruction_loss += reconstruction_loss.item() * accum_adjustment
 
-        reconstruction_r2 = metrics.image_r2_score(
-            images.clone(), output_dict["reconstructed_image"]
+        reconstruction_r2 = metrics.time_series_r2_score(
+            time_series.clone(), output_dict["reconstructed_time_series"]
         )
         accum_reconstruction_r2 += reconstruction_r2.item() * accum_adjustment
 
@@ -84,7 +92,7 @@ def one_epoch(
             model.model_name not in ["SlotMLPAdditive", "SlotMLPMonolithic"]
             and epoch % freq == 0
         ):
-            true_masks = training_utils.get_masks(images, true_figures)
+            true_masks = training_utils.get_masks(time_series, true_figures)
             ari_score = metrics.ari(
                 true_masks,
                 output_dict["reconstructed_masks"].detach().permute(1, 0, 2, 3, 4),
@@ -92,10 +100,8 @@ def one_epoch(
             true_masks = true_masks.detach().permute(1, 0, 2, 3, 4)
             accum_ari_score += ari_score.item() * accum_adjustment
 
-        # add to total loss
         total_loss += reconstruction_loss
 
-        # calculate slots loss and r2 score for supervised models
         if not unsupervised_mode:
             slots_loss, inds = metrics.hungarian_slots_loss(
                 true_latents,
@@ -110,10 +116,8 @@ def one_epoch(
             accum_r2_score += avg_r2 * accum_adjustment
             per_latent_r2_score += raw_r2 * accum_adjustment
 
-            # add to total loss
             total_loss += slots_loss
 
-        # calculate consistency loss
         if model.model_name != "SlotMLPMonolithic":
             with nullcontext() if use_consistency_loss else torch.no_grad():
                 consistency_encoder_loss, _ = metrics.hungarian_slots_loss(
@@ -130,8 +134,8 @@ def one_epoch(
         if model.model_name != "SlotMLPMonolithic":
             with torch.no_grad():
                 consistency_decoder_loss = metrics.reconstruction_loss(
-                    output_dict["sampled_image"],
-                    output_dict["reconstructed_sampled_image"],
+                    output_dict["sampled_time_series"],
+                    output_dict["reconstructed_sampled_time_series"],
                 )
                 accum_consistency_decoder_loss += (
                     consistency_decoder_loss.item() * accum_adjustment
@@ -141,7 +145,6 @@ def one_epoch(
             accum_consistency_loss += consistency_loss.item() * accum_adjustment
 
         if (use_consistency_loss) and epoch >= consistency_ignite_epoch:
-            # add to total loss
             total_loss += consistency_loss
 
         accum_total_loss += total_loss.item() * accum_adjustment
@@ -149,7 +152,6 @@ def one_epoch(
             total_loss.backward()
             optimizer.step()
 
-    # logging utils
     training_utils.print_metrics_to_console(
         epoch,
         accum_total_loss,
@@ -188,16 +190,11 @@ def run(
     load_checkpoint,
     evaluation_frequency,
 ):
-    """
-    Run the training and testing. Currently only supports SpritesWorld dataset.
-    Check main.py for the description of the parameters.
-    """
     dataset_path = os.path.join(dataset_path, dataset_name)
     signature_args = locals().copy()
 
     training_utils.set_seed(seed)
 
-    ##### Loading Data #####
     os.path.isdir(dataset_path)
     wrapper = src.datasets.wrappers.get_wrapper(
         dataset_name,
@@ -212,44 +209,63 @@ def run(
     )
     train_loader = wrapper.get_train_loader(**signature_args)
 
-    
     if dataset_name == "ukdale":
         resolution = (256, 1)
-        latent_dim = 5  
+        latent_dim = 5
         in_channels = 1
 
     elif dataset_name == "reded":
         resolution = (256, 1)
-        latent_dim = 5  
+        latent_dim = 5
         in_channels = 1
 
     elif dataset_name == "synth_1":
         resolution = (256, 1)
-        latent_dim = 5  
+        latent_dim = 5
         in_channels = 1
 
     elif dataset_name == "synth_2":
         resolution = (256, 1)
-        latent_dim = 7 
+        latent_dim = 7
         in_channels = 1
 
     elif dataset_name == "synth_3":
         resolution = (256, 1)
         latent_dim = 7
         in_channels = 3
-    else: 
+    else:
         NotImplementedError
 
     if model_name == "TimeCSL":
-        model = base_models.SlotMLPAdditive(
+        model = base_models.TimeCSL(
             in_channels,
             n_slots,
             n_slot_latents,
         ).to(device)
-    elif model_name == "SlotMLPMonolithic":
-        model = base_models.SlotMLPMonolithic(in_channels, n_slots, n_slot_latents).to(
-            device
-        )
+
+    if model_name == "iVAE":
+        model = base_models.iVAE(
+            in_channels,
+            n_slots,
+            n_slot_latents,
+        ).to(device)
+
+    if model_name == "DiffusionVAE":
+        model = base_models.DiffusionVAE(
+            in_channels,
+            n_slots,
+            n_slot_latents,
+        ).to(device)
+
+    if model_name == "DCVAE":
+        model = base_models.DiffusionVAE(
+            in_channels,
+            n_slots,
+            n_slot_latents,
+        ).to(device)
+
+    elif model_name == "SlowVAE":
+        model = base_models.SlowVAE(in_channels, n_slots, n_slot_latents).to(device)
     elif model_name == "SlotAttention":
         encoder = slot_attention.SlotAttentionEncoder(
             resolution=resolution,
@@ -267,11 +283,10 @@ def run(
             num_slots=n_slots,
             num_iterations=3,
             hid_dim=n_slot_latents,
-            sampling=sampling,  # change to False for the "fixed" model
-            softmax=softmax,  # change to False for the "fixed" model
+            sampling=sampling,
+            softmax=softmax,
         ).to(device)
 
-    # warmup
     optimizer = torch.optim.AdamW(model.parameters(), lr=1e-7, weight_decay=0.001)
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=2)
 
@@ -311,10 +326,7 @@ def run(
                 optimizer, step_size=lr_scheduler_step, gamma=0.5
             )
 
-        print("Learning rate: ", optimizer.param_groups[0]["lr"])
-
         if epoch % evaluation_frequency == 0:
-            print("\nEvaluating model\n")
             if model_name in ["SlotAttention", "SlotMLPAdditive"] and epoch % 1 == 0:
                 if dataset_name == "dsprites":
                     categorical_dimensions = [2]
@@ -325,9 +337,6 @@ def run(
                     test_loader_ood,
                     categorical_dimensions,
                     device,
-                )
-                print(
-                    f"ID score ID: {id_score_id:.4f}, ID score OOD: {id_score_ood:.4f}"
                 )
 
             id_rec_loss = one_epoch(
@@ -354,8 +363,6 @@ def run(
                 **locals(),
                 checkpoint_name=f"{save_name}_{epoch}",
             )
-
-            print("\nEvaluation done\n")
 
     training_utils.save_checkpoint(
         path=checkpoint_path,

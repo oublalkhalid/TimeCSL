@@ -1,5 +1,5 @@
-# coding=utf-8
-# Copyright 2018 Ubisoft La Forge Authors.  All rights reserved.
+# Identifiability Guarantees For Time Series Representation via Contrastive Sparsity-inducing
+# Copyright 2024, ICLR 2025
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -21,10 +21,10 @@ from utils import get_bin_index, get_mutual_information
 
 
 def jemmig(factors, codes, continuous_factors=True, nb_bins=10):
-    ''' JEMMIG metric from K. Do and T. Tran,
+    """JEMMIG metric from K. Do and T. Tran,
         “Theory and evaluation metrics for learning disentangled representations,”
         in ICLR, 2020.
-    
+
     :param factors:                         dataset of factors
                                             each column is a factor and each line is a data point
     :param codes:                           latent codes associated to the dataset of factors
@@ -32,16 +32,16 @@ def jemmig(factors, codes, continuous_factors=True, nb_bins=10):
     :param continuous_factors:              True:   factors are described as continuous variables
                                             False:  factors are described as discrete variables
     :param nb_bins:                         number of bins to use for discretization
-    '''
+    """
     # count the number of factors and latent codes
     nb_factors = factors.shape[1]
     nb_codes = codes.shape[1]
-    
+
     # quantize factors if they are continuous
     if continuous_factors:
         factors = minmax_scale(factors)  # normalize in [0, 1] all columns
         factors = get_bin_index(factors, nb_bins)  # quantize values and get indexes
-    
+
     # quantize latent codes
     codes = minmax_scale(codes)  # normalize in [0, 1] all columns
     codes = get_bin_index(codes, nb_bins)  # quantize values and get indexes
@@ -50,9 +50,11 @@ def jemmig(factors, codes, continuous_factors=True, nb_bins=10):
     mi_matrix = np.zeros((nb_factors, nb_codes))
     for f in range(nb_factors):
         for c in range(nb_codes):
-            mi_matrix[f, c] = get_mutual_information(factors[:, f], codes[:, c], normalize=False)
+            mi_matrix[f, c] = get_mutual_information(
+                factors[:, f], codes[:, c], normalize=False
+            )
 
-    # compute joint entropy matrix 
+    # compute joint entropy matrix
     je_matrix = np.zeros((nb_factors, nb_codes))
     for f in range(nb_factors):
         for c in range(nb_codes):
@@ -69,11 +71,13 @@ def jemmig(factors, codes, continuous_factors=True, nb_bins=10):
         jemmig_not_normalized = je_matrix[f, je_idx] - mi_f[-1] + mi_f[-2]
 
         # normalize by H(f) + log(#bins)
-        jemmig_f = jemmig_not_normalized / (drv.entropy_joint(factors[:, f]) + np.log2(nb_bins))
+        jemmig_f = jemmig_not_normalized / (
+            drv.entropy_joint(factors[:, f]) + np.log2(nb_bins)
+        )
         jemmig_f = 1 - jemmig_f
         sum_gap += jemmig_f
-    
+
     # compute the mean gap
     jemmig_score = sum_gap / nb_factors
-    
+
     return jemmig_score
